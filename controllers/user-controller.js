@@ -50,10 +50,12 @@ const userController = {
   // Profile
   getUser: (req, res, next) => {
     return User.findByPk(req.params.id, {
-      include: {
-        model: Comment,
-        include: Restaurant
-      },
+      include: [
+        { model: Comment, include: Restaurant },
+        { model: User, as: 'Followers' },
+        { model: User, as: 'Followings' },
+        { model: Restaurant, as: 'FavoritedRestaurants' }
+      ],
       order: [
         [Comment, 'id', 'DESC']
       ],
@@ -61,8 +63,17 @@ const userController = {
     })
       .then(user => {
         if (!user) throw new Error('User did not exist!')
-        return res.render('users/profile', { user: user.toJSON() })
-        // 使用 多層查詢不能使用 raw:true, 需要在最後使用 user.toJSON()
+
+        user = user.toJSON()
+        const RestaurantsWithComment = []
+
+        user.Comments.forEach(comment => {
+          if (!RestaurantsWithComment.some(r => r.id === comment.Restaurant.id)) {
+            RestaurantsWithComment.push(comment.Restaurant)
+          }
+        })
+        user.RestaurantsWithComment = RestaurantsWithComment
+        return res.render('users/profile', { user })
       })
       .catch(err => next(err))
   },
